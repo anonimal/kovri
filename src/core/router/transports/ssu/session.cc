@@ -597,7 +597,7 @@ void SSUSession::SendSessionCreated(const std::uint8_t* dh_x)
 
       // Set Alice's relay tag
       std::uint32_t relay_tag = 0;
-      if (context.GetRouterInfo().HasCap(RouterInfo::Cap::SSUIntroducer))
+      if (context.GetRouterInfo().HasCaps({RouterInfo::Cap::SSUIntroducer}))
         {
           // Non-zero = we are offering ourselves to be an introducer
           relay_tag = core::Rand<std::uint32_t>();
@@ -1663,7 +1663,9 @@ void SSUSession::Established() {
   // send database store
   m_Data.Send(CreateDatabaseStoreMsg());
   transports.PeerConnected(shared_from_this());
-  if (m_PeerTest && (m_RemoteRouter && m_RemoteRouter->HasCap(RouterInfo::Cap::SSUTesting)))
+  if (m_PeerTest
+      && (m_RemoteRouter
+          && m_RemoteRouter->HasCaps({RouterInfo::Cap::SSUTesting})))
     SendPeerTest();
   ScheduleTermination();
 }

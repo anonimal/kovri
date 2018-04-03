@@ -259,7 +259,8 @@ bool Transports::IsBandwidthExceeded() const {
     LOG(debug) << "Transports: bandwidth has been exceeded";
     return true;
   }
-  if (context.GetRouterInfo().HasCap(RouterInfo::Cap::HighBandwidth))
+  // TODO(anonimal): this is useless. RI having a cap != actual limit
+  if (context.GetRouterInfo().HasCaps({RouterInfo::Cap::BW2000}))
     LOG(debug) << "Transports: bandwidth has not been exceeded";
   return false;
 }

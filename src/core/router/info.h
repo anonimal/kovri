@@ -35,13 +35,16 @@
 
 #include <boost/asio.hpp>
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <string>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 #include "core/crypto/signature.h"
@@ -101,39 +104,48 @@ struct RouterInfoTraits
     SSUv6 = 0x08,
   };
 
-  /// @enum Cap
   /// @brief RI capabilities
-  enum Cap : std::uint8_t
+  enum struct Cap : std::uint8_t
   {
-    Floodfill = 0x01,
-    UnlimitedBandwidth = 0x02,
-    HighBandwidth = 0x04,
-    Reachable = 0x08,
-    SSUTesting = 0x10,
-    SSUIntroducer = 0x20,
-    Hidden = 0x40,
-    Unreachable = 0x80,
-  };
-
-  /// @enum CapFlag
-  /// @brief Flags used for RI capabilities
-  enum struct CapFlag : std::uint8_t
-  {
+    BWUnlimited,  ///< Unlimited shared bandwidth
+    BW2000,  ///< Over 2000 KBps shared bandwidth // TODO(unassigned): docs say 2000, java impl implies 512
+    BW256,  ///< 256 - 2000 KBps shared bandwidth
+    BW128,  ///< 128 - 256 KBps shared bandwidth
+    BW64,  ///< 64 - 128 KBps shared bandwidth
+    BW48,  ///< 48 - 64 KBps shared bandwidth
+    BW12,  ///< Under 12 KBps shared bandwidth
     Floodfill,
-    Hidden,
     Reachable,
     Unreachable,
-    LowBandwidth1,
-    LowBandwidth2,
-    HighBandwidth1,
-    HighBandwidth2,
-    HighBandwidth3,
-    HighBandwidth4,
-    UnlimitedBandwidth,
-    SSUTesting,
-    SSUIntroducer,
-    Unknown,
+    Hidden,
+    SSUTesting,  ///< Willing and able to participate in peer tests (as Bob or Charlie)
+    SSUIntroducer,  ///< Willing and able to serve as an introducer (serving as Bob for an unreachable Alice)
   };
+
+  /// @brief Mapped RI capabilities
+  /// @returns Mapped RI capabilities
+  /// @notes We avoid std::map for static duration because we want trivial dtor
+  const auto& get_caps_map() const
+  {
+    static constexpr std::array<std::pair<Cap, char>, 13> caps{{
+        {Cap::BWUnlimited, 'X'},
+        {Cap::BW2000, 'P'},
+        {Cap::BW256, 'O'},
+        {Cap::BW128, 'N'},
+        {Cap::BW64, 'M'},
+        {Cap::BW48, 'L'},
+        {Cap::BW12, 'K'},
+        {Cap::Floodfill, 'f'},
+        {Cap::Reachable, 'R'},
+        {Cap::Hidden, 'H'},
+        {Cap::Unreachable, 'U'},
+        {Cap::SSUTesting, 'B'},
+        {Cap::SSUIntroducer, 'C'},
+    }};
+    return caps;
+  }
+
+  // TODO(anonimal): trait refactor
 
   /// @enum Trait
   /// @brief RI traits
@@ -328,106 +340,9 @@ struct RouterInfoTraits
           return GetTrait(Trait::Unknown);
       }
   }
-
-  /// @return Char flag of given enumerated caps flag
-  /// @param flag Flag enum used for caps char flag
-  char GetTrait(CapFlag flag) const noexcept
-  {
-    switch (flag)
-      {
-        case CapFlag::Floodfill:
-          return 'f';  // Floodfill
-
-        case CapFlag::Hidden:
-          return 'H';  // Hidden
-
-        case CapFlag::Reachable:
-          return 'R';  // Reachable
-
-        case CapFlag::Unreachable:
-          return 'U';  // Unreachable
-
-        case CapFlag::LowBandwidth1:
-          return 'K';  // Under 12 KBps shared bandwidth
-
-        case CapFlag::LowBandwidth2:
-          return 'L';  // 12 - 48 KBps shared bandwidth
-
-        case CapFlag::HighBandwidth1:
-          return 'M';  // 48 - 64 KBps shared bandwidth
-
-        case CapFlag::HighBandwidth2:
-          return 'N';  // 64 - 128 KBps shared bandwidth
-
-        case CapFlag::HighBandwidth3:
-          return 'O';  // 128 - 256 KBps shared bandwidth
-
-        case CapFlag::HighBandwidth4:
-          return 'P';  // 256 - 2000 KBps shared bandwidth
-
-        case CapFlag::UnlimitedBandwidth:
-          return 'X';  // Over 2000 KBps shared bandwidth
-
-        case CapFlag::SSUTesting:
-          return 'B';  // Willing and able to participate in peer tests (as Bob or Charlie)
-
-        case CapFlag::SSUIntroducer:
-          return 'C';  // Willing and able to serve as an introducer (serving as Bob for an otherwise unreachable Alice)
-
-        case CapFlag::Unknown:
-        default:
-          return ' ';  // TODO(anonimal): review
-      }
-  }
-
-  /// @return Enumerated caps flag
-  /// @param value Char value of potential caps flag given
-  CapFlag GetTrait(const char& value) const noexcept
-  {
-    if (value == GetTrait(CapFlag::Floodfill))
-      return CapFlag::Floodfill;
-
-    else if (value == GetTrait(CapFlag::Hidden))
-      return CapFlag::Hidden;
-
-    else if (value == GetTrait(CapFlag::Reachable))
-      return CapFlag::Reachable;
-
-    else if (value == GetTrait(CapFlag::Unreachable))
-      return CapFlag::Unreachable;
-
-    else if (value == GetTrait(CapFlag::LowBandwidth1))
-      return CapFlag::LowBandwidth1;
-
-    else if (value == GetTrait(CapFlag::LowBandwidth2))
-      return CapFlag::LowBandwidth2;
-
-    else if (value == GetTrait(CapFlag::HighBandwidth1))
-      return CapFlag::HighBandwidth1;
-
-    else if (value == GetTrait(CapFlag::HighBandwidth2))
-      return CapFlag::HighBandwidth2;
-
-    else if (value == GetTrait(CapFlag::HighBandwidth3))
-      return CapFlag::HighBandwidth3;
-
-    else if (value == GetTrait(CapFlag::HighBandwidth4))
-      return CapFlag::HighBandwidth4;
-
-    else if (value == GetTrait(CapFlag::UnlimitedBandwidth))
-      return CapFlag::UnlimitedBandwidth;
-
-    else if (value == GetTrait(CapFlag::SSUTesting))
-      return CapFlag::SSUTesting;
-
-    else if (value == GetTrait(CapFlag::SSUIntroducer))
-      return CapFlag::SSUIntroducer;
-
-    else
-      return CapFlag::Unknown;  // TODO(anonimal): review
-  }
 };
 
+// TODO(anonimal): this class is too large for its purpose.
 class RouterInfo : public RouterInfoTraits, public RoutingDestination
 {
  public:
@@ -438,12 +353,12 @@ class RouterInfo : public RouterInfoTraits, public RoutingDestination
   /// @param keys Privkeys which generate identity
   /// @param points Local hostname/ip address + port list
   /// @param has_transport Supports NTCP, SSU
-  /// @param caps RI capabilities
+  /// @param caps RI capabilities by key(s)
   RouterInfo(
       const core::PrivateKeys& keys,
       const std::vector<std::pair<std::string, std::uint16_t>>& points,
       const std::pair<bool, bool>& has_transport,  // TODO(anonimal): refactor as bitwise SupportedTransport?
-      const std::uint8_t caps = core::RouterInfo::Cap::Reachable);
+      const std::initializer_list<Cap>& caps = {Cap::Reachable});
 
   /// @brief Create RI from file
   /// @param path Full path to RI file
@@ -597,16 +512,6 @@ class RouterInfo : public RouterInfoTraits, public RoutingDestination
     return m_Timestamp;
   }
 
-  /// @brief Sets RI capabilities *and* options
-  /// @param caps capabiliti(es) to set
-  void SetCaps(std::uint8_t caps);
-
-  /// @return RI capabilities
-  std::uint8_t GetCaps() const noexcept
-  {
-    return m_Caps;
-  }
-
   /// @brief Set RI option(s)
   /// @details RI options consist of expected (required) options and additional options.
   ///   Required options include capability flags (in non-int form) and various router version information.
@@ -718,19 +623,11 @@ class RouterInfo : public RouterInfoTraits, public RoutingDestination
     return m_SupportedTransports & other.m_SupportedTransports;
   }
 
-  /// @brief Does RI have given capabiliti(es)?
-  /// @param cap Capabiliti(es)
-  /// @return True if available
-  bool HasCap(Cap cap) const noexcept
-  {
-    return m_Caps & cap;
-  }
-
   /// @brief Router is unreachable, must use introducer
   /// @return True if uses introducer
   bool UsesIntroducer() const noexcept
   {
-    return HasCap(Cap::Unreachable);
+    return HasCaps({Cap::Unreachable});
   }
 
   // TODO(anonimal): really?...
@@ -768,6 +665,40 @@ class RouterInfo : public RouterInfoTraits, public RoutingDestination
   const std::string GetDescription(
       const std::string& tabs = std::string()) const;
 
+ public:
+  /// @brief Set RI capabilities by key(s)
+  /// @param caps RI capabilities
+  void SetCaps(const std::initializer_list<Cap>& caps);
+
+  /// @brief Set RI capabilities by string
+  /// @param caps Capabilities
+  void SetCaps(const std::string& caps);
+
+  /// @brief Does RI have given capabiliti(es)?
+  /// @param caps RI capabilities
+  /// @return True if available
+  bool HasCaps(const std::initializer_list<Cap>& caps) const;
+
+  /// @brief Remove RI capabilities by key(s)
+  /// @param caps RI capabilities
+  void RemoveCaps(const std::initializer_list<Cap>& caps);
+
+  /// @brief Remove RI capabilities by string
+  /// @param caps RI capabilities
+  void RemoveCaps(const std::string& caps);
+
+  /// @return Current RI capabilities
+  const std::string& get_caps() const noexcept
+  {
+    return m_Caps;
+  }
+
+ private:
+  /// @brief Generate caps flags using caps key(s)
+  /// @param caps RI capabilities
+  /// @return Caps string
+  std::string GetCapsFlags(const std::initializer_list<Cap>& caps) const;
+
  private:
   /// @brief Read RI from file
   /// @throws std::exception
@@ -780,12 +711,6 @@ class RouterInfo : public RouterInfoTraits, public RoutingDestination
   /// @brief Parses complete RI
   /// @param router_info Object to write RI to
   void ParseRouterInfo(const std::string& router_info);
-
-  /// @brief Set RI capabilities from string of caps flag(s)
-  void SetCaps(const std::string& caps);
-
-  /// @return Capabilities flags in string form
-  const std::string GetCapsFlags() const;
 
   /// @brief Creates populated RI stream
   /// @param router_info RI stream to write to
@@ -810,7 +735,8 @@ class RouterInfo : public RouterInfoTraits, public RoutingDestination
   std::vector<Address> m_Addresses;
   std::map<std::string, std::string> m_Options;
   bool m_IsUpdated = false, m_IsUnreachable = false;
-  std::uint8_t m_SupportedTransports{}, m_Caps{};
+  std::uint8_t m_SupportedTransports{};
+  std::string m_Caps;  ///< RI capabilities
   mutable std::shared_ptr<RouterProfile> m_Profile;
 };
 

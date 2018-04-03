@@ -62,7 +62,7 @@ RouterInfo::RouterInfo(
     const core::PrivateKeys& keys,
     const std::vector<std::pair<std::string, std::uint16_t>>& points,
     const std::pair<bool, bool>& has_transport,
-    const std::uint8_t caps)
+    const std::initializer_list<Cap>& caps)
     : m_Exception(__func__), m_RouterIdentity(keys.GetPublic())
 {
   // TODO(anonimal): in core config, we guarantee validity of host and port but
@@ -73,8 +73,9 @@ RouterInfo::RouterInfo(
   LOG(info) << "RouterInfo: our router's ident: " << m_RouterIdentity.ToBase64();
   LOG(info) << "RouterInfo: our router's ident hash: " << hash.ToBase64();
 
-  // Set default caps
-  SetCaps(caps);
+  // Set default caps and RI option
+  SetCaps({caps});
+  SetOption(GetTrait(Trait::Caps), m_Caps);
 
   for (const auto& point : points)
     {
@@ -88,11 +89,7 @@ RouterInfo::RouterInfo(
     }
 
   if (has_transport.second)
-    {
-      SetCaps(
-          m_Caps | core::RouterInfo::Cap::SSUTesting
-          | core::RouterInfo::Cap::SSUIntroducer);
-    }
+    SetCaps({RouterInfo::Cap::SSUTesting, RouterInfo::Cap::SSUIntroducer});
 
   // Set default options
   SetDefaultOptions();
@@ -467,89 +464,78 @@ void RouterInfo::SetDefaultOptions()
   //   netdb starts. We'll need to ensure the 'known' opts are set *after* netdb starts.
 }
 
-void RouterInfo::SetCaps(const std::string& caps)
+void RouterInfo::SetCaps(const std::initializer_list<Cap>& caps)
 {
-  LOG(debug) << "RouterInfo: " << __func__ << ": setting caps " << caps;
-  for (const auto& cap : caps)
-    {
-      switch (GetTrait(cap))
-        {
-          case CapFlag::Floodfill:
-            m_Caps |= Cap::Floodfill;
-            break;
-          case CapFlag::UnlimitedBandwidth:
-            m_Caps |= Cap::UnlimitedBandwidth;
-            break;
-          case CapFlag::HighBandwidth1:
-          case CapFlag::HighBandwidth2:
-          case CapFlag::HighBandwidth3:
-          case CapFlag::HighBandwidth4:
-            m_Caps |= Cap::HighBandwidth;
-            break;
-          case CapFlag::LowBandwidth1:
-          case CapFlag::LowBandwidth2:
-            // TODO(anonimal): implement!
-            break;
-          case CapFlag::Hidden:
-            m_Caps |= Cap::Hidden;
-            break;
-          case CapFlag::Reachable:
-            m_Caps |= Cap::Reachable;
-            break;
-          case CapFlag::Unreachable:
-            m_Caps |= Cap::Unreachable;
-            break;
-          case CapFlag::SSUTesting:
-            m_Caps |= Cap::SSUTesting;
-            break;
-          case CapFlag::SSUIntroducer:
-            m_Caps |= Cap::SSUIntroducer;
-            break;
-          case CapFlag::Unknown:
-          default:
-            {
-              LOG(error) << "RouterInfo: " << __func__
-                         << ": ignoring unknown cap " << cap;
-            }
-        }
-    }
+  SetCaps(GetCapsFlags(caps));
 }
 
-void RouterInfo::SetCaps(std::uint8_t caps)
-{
-  // Set member
-  m_Caps = caps;
-
-  // Set RI option with new caps flags
-  SetOption(GetTrait(Trait::Caps), GetCapsFlags());
-}
-
-const std::string RouterInfo::GetCapsFlags() const
+std::string RouterInfo::GetCapsFlags(
+    const std::initializer_list<Cap>& caps) const
 {
   std::string flags;
 
-  if (m_Caps & Cap::Floodfill)
+  // For backwards compatability, java I2P adds O cap if P or X cap is given.
+  // The likelihood of any < 0.9.21 routers is rare but, for the sake of
+  // avoiding kovri fingerprinting, we'll add O if P or X are given.
+  bool set_back(false);
+
+  // Note: faster than two ranged loops, or std::map::find, or std::find_if,
+  //   or std::any_of, or nested finds, or...
+  for (const auto& map : get_caps_map())
     {
-      flags += GetTrait(CapFlag::HighBandwidth4);  // highest bandwidth
-      flags += GetTrait(CapFlag::Floodfill);
+      if (std::find(caps.begin(), caps.end(), map.first) != caps.end())
+        {
+          // Set flag
+          flags += map.second;
+
+          // Set backwards compatability
+          if (map.first == Cap::BWUnlimited
+              || map.first == Cap::BW2000)
+            set_back = true;
+
+          // TODO(anonimal): floodfill for higher bw caps?
+        }
+
+      // Add backwards compatible flag
+      if (set_back && map.first == Cap::BW256)
+        flags += map.second;
     }
-  else
-    {
-      flags += (m_Caps & Cap::HighBandwidth) ? GetTrait(CapFlag::HighBandwidth3)
-                                             : GetTrait(CapFlag::LowBandwidth2);
-      // TODO(anonimal): what about lowest bandwidth cap?
-    }
-
-  if (m_Caps & Cap::Hidden)
-    flags += GetTrait(CapFlag::Hidden);
-
-  if (m_Caps & Cap::Reachable)
-    flags += GetTrait(CapFlag::Reachable);
-
-  if (m_Caps & Cap::Unreachable)
-    flags += GetTrait(CapFlag::Unreachable);
 
   return flags;
+}
+
+void RouterInfo::SetCaps(const std::string& caps)
+{
+  // TODO(anonimal): optimizations. Flags getter already iterates through map.
+  for (const auto& map : get_caps_map())
+    if (caps.find(map.second) != std::string::npos)
+      // Prevent dups
+      if (m_Caps.find(map.second) == std::string::npos)
+        m_Caps += map.second;
+
+  LOG(debug) << "RouterInfo: " << __func__ << ": " << m_Caps;
+}
+
+bool RouterInfo::HasCaps(const std::initializer_list<Cap>& caps) const
+{
+  for (const auto& flag : GetCapsFlags(caps))
+    if (m_Caps.find(flag) == std::string::npos)
+      return false;
+  return true;
+}
+
+void RouterInfo::RemoveCaps(const std::initializer_list<Cap>& caps)
+{
+  RemoveCaps(GetCapsFlags(caps));
+}
+
+void RouterInfo::RemoveCaps(const std::string& caps)
+{
+  // TODO(anonimal): optimizations. Flags getter already iterates through map.
+  for (const auto& map : get_caps_map())
+    if (caps.find(map.second) != std::string::npos)
+      m_Caps.erase(
+          std::remove(m_Caps.begin(), m_Caps.end(), map.second), m_Caps.end());
 }
 
 void RouterInfo::AddAddress(
@@ -587,7 +573,7 @@ void RouterInfo::AddAddress(
                                        ? SupportedTransport::SSUv6
                                        : SupportedTransport::SSUv4;
           // Set our caps
-          m_Caps |= Cap::SSUTesting | Cap::SSUIntroducer;
+          SetCaps({Cap::SSUTesting, Cap::SSUIntroducer});
         }
         break;
 
@@ -677,6 +663,7 @@ void RouterInfo::DisableV6()
       std::end(m_Addresses));
 }
 
+// TODO(anonimal): see buffer refactor TODO
 void RouterInfo::Update(const std::uint8_t* buf, std::uint16_t len)
 {
   if (len < Size::MinBuffer || len > Size::MaxBuffer)
@@ -688,7 +675,7 @@ void RouterInfo::Update(const std::uint8_t* buf, std::uint16_t len)
   m_IsUpdated = true;
   m_IsUnreachable = false;
   m_SupportedTransports = 0;
-  m_Caps = 0;
+  m_Caps.clear();
   m_Addresses.clear();
   m_Options.clear();
   std::memcpy(m_Buffer.get(), buf, len);
@@ -796,10 +783,12 @@ void RouterInfo::CreateRouterInfo(
 
               // Get/Set SSU capabilities flags
               std::string caps;
-              if (HasCap(Cap::SSUTesting))
-                caps += GetTrait(CapFlag::SSUTesting);
-              if (HasCap(Cap::SSUIntroducer))
-                caps += GetTrait(CapFlag::SSUIntroducer);
+
+              if (HasCaps({Cap::SSUTesting}))
+                caps += GetCapsFlags({Cap::SSUTesting});
+
+              if (HasCaps({Cap::SSUIntroducer}))
+                caps += GetCapsFlags({Cap::SSUIntroducer});
 
               // Write SSU capabilities
               options.WriteKeyPair(GetTrait(Trait::Caps), caps);
@@ -1077,12 +1066,12 @@ const std::string RouterInfo::GetDescription(const std::string& tabs) const
      << tabs << "\tOptions(" << m_Options.size() << "): " << std::endl;
   for (const auto& opt : m_Options)
     ss << tabs << "\t\t[" << opt.first << "] : [" << opt.second << "]" << std::endl;
+
   ss << tabs << "\tSSU Caps: ["
-     << (HasCap(Cap::SSUTesting) ? GetTrait(CapFlag::SSUTesting)
-                                 : GetTrait(CapFlag::Unknown))
-     << (HasCap(Cap::SSUIntroducer) ? GetTrait(CapFlag::SSUIntroducer)
-                                    : GetTrait(CapFlag::Unknown))
+     << (HasCaps({Cap::SSUTesting}) ? GetCapsFlags({Cap::SSUTesting}) : "")
+     << (HasCaps({Cap::SSUIntroducer}) ? GetCapsFlags({Cap::SSUIntroducer}) : "")
      << "]" << std::endl;
+
   ss << tabs << "\tAddresses(" << m_Addresses.size() << "): " << std::endl;
   for (const auto& address : m_Addresses)
     ss << GetDescription(address, tabs + "\t\t");

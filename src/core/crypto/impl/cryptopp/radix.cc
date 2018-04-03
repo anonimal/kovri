@@ -43,6 +43,7 @@ namespace kovri
 namespace core
 {
 /// @brief Base32 RFC 4648 alphabet
+// TODO(anonimal): std::string is not trivially-destructible. See style guide.
 template <typename T>
 std::string Radix<T>::m_Base32Alphabet("abcdefghijklmnopqrstuvwxyz234567");
 
@@ -93,6 +94,7 @@ std::vector<std::uint8_t> Base32::Decode(
 }
 
 /// @brief Base64 custom I2P alphabet
+// TODO(anonimal): std::string is not trivially-destructible. See style guide.
 template <typename T>
 std::string Radix<T>::m_Base64Alphabet(
     "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-~");

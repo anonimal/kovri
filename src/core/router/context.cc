@@ -169,9 +169,8 @@ void RouterContext::Initialize(const boost::program_options::variables_map& map)
           RemoveTransport(core::RouterInfo::Transport::SSU);
 
           // Remove constructed SSU capabilities
-          router.SetCaps(
-              router.GetCaps() & ~core::RouterInfo::Cap::SSUTesting
-              & ~core::RouterInfo::Cap::SSUIntroducer);
+          router.RemoveCaps(
+              {RouterInfo::Cap::SSUTesting, RouterInfo::Cap::SSUIntroducer});
         }
 
       // Update RI options (in case RI was older than these version)
@@ -201,13 +200,12 @@ void RouterContext::Initialize(const boost::program_options::variables_map& map)
   // Floodfill
   if (m_Opts["enable-floodfill"].as<bool>())
     {
-      m_RouterInfo.SetCaps(
-          m_RouterInfo.GetCaps() | core::RouterInfo::Cap::Floodfill);
+      m_RouterInfo.SetCaps({RouterInfo::Cap::Floodfill});
     }
   else
     {
-      m_RouterInfo.SetCaps(
-          m_RouterInfo.GetCaps() & ~core::RouterInfo::Cap::Floodfill);
+      // TODO(anonimal): assumes floodfill cap is set
+      m_RouterInfo.RemoveCaps({RouterInfo::Cap::Floodfill});
       // we don't publish number of routers and leaseset for non-floodfill
       m_RouterInfo.GetOptions().erase(GetTrait(Trait::LeaseSets));
       m_RouterInfo.GetOptions().erase(GetTrait(Trait::Routers));
@@ -217,17 +215,11 @@ void RouterContext::Initialize(const boost::program_options::variables_map& map)
   auto const bandwidth = m_Opts["bandwidth"].as<std::string>();
   if (!bandwidth.empty())
     {
-      auto const cap = core::RouterInfo::Cap::HighBandwidth;
+      auto const cap = core::RouterInfo::Cap::BW2000;
       if (bandwidth[0] > 'L')  // TODO(anonimal): refine
-        {
-          if (!m_RouterInfo.HasCap(cap))
-            m_RouterInfo.SetCaps(m_RouterInfo.GetCaps() | cap);
-        }
+        m_RouterInfo.SetCaps({cap});
       else
-        {
-          if (m_RouterInfo.HasCap(cap))
-            m_RouterInfo.SetCaps(m_RouterInfo.GetCaps() & ~cap);
-        }
+        m_RouterInfo.RemoveCaps({cap});
     }
 
   // TODO(anonimal): we don't want to update twice when once at the right time will suffice
@@ -294,13 +286,12 @@ void RouterContext::RemoveIntroducer(
 }
 
 bool RouterContext::IsUnreachable() const {
-  return m_RouterInfo.GetCaps() & core::RouterInfo::Cap::Unreachable;
+  return m_RouterInfo.HasCaps({RouterInfo::Cap::Unreachable});
 }
 
 void RouterContext::SetUnreachable() {
-  // set caps
-  m_RouterInfo.SetCaps(  // LU, B
-      core::RouterInfo::Cap::Unreachable | core::RouterInfo::Cap::SSUTesting);
+  m_RouterInfo.SetCaps(
+      {RouterInfo::Cap::Unreachable, RouterInfo::Cap::SSUTesting});
   // remove NTCP address
   RemoveTransport(core::RouterInfo::Transport::NTCP);
   // delete previous introducers
@@ -311,14 +302,15 @@ void RouterContext::SetUnreachable() {
 }
 
 void RouterContext::SetReachable() {
-  // update caps
-  std::uint8_t caps = m_RouterInfo.GetCaps();
-  caps &= ~core::RouterInfo::Cap::Unreachable;
-  caps |= core::RouterInfo::Cap::Reachable;
-  caps |= core::RouterInfo::Cap::SSUIntroducer;  // TODO(anonimal): but if SSU is disabled?...
+  // Update caps
+  m_RouterInfo.RemoveCaps({RouterInfo::Cap::Unreachable});
+
+  // TODO(anonimal): but if SSU is disabled?...
+  m_RouterInfo.SetCaps(
+      {RouterInfo::Cap::Reachable, RouterInfo::Cap::SSUIntroducer});
+
   if (IsFloodfill())
-    caps |= core::RouterInfo::Cap::Floodfill;
-  m_RouterInfo.SetCaps(caps);
+    m_RouterInfo.SetCaps({RouterInfo::Cap::Floodfill});
 
   // insert NTCP back
   auto& addresses = m_RouterInfo.GetAddresses();
@@ -398,9 +390,8 @@ void RouterContext::RemoveTransport(
   }
   // Remove SSU capabilities
   if (transport == core::RouterInfo::Transport::SSU)
-    m_RouterInfo.SetCaps(
-        m_RouterInfo.GetCaps() & ~core::RouterInfo::Cap::SSUTesting
-        & ~core::RouterInfo::Cap::SSUIntroducer);
+    m_RouterInfo.RemoveCaps(
+        {RouterInfo::Cap::SSUTesting, RouterInfo::Cap::SSUIntroducer});
 }
 
 std::shared_ptr<kovri::core::TunnelPool> RouterContext::GetTunnelPool() const {

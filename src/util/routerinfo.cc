@@ -141,7 +141,6 @@ bool RouterInfoCommand::Impl(
             throw std::invalid_argument(
                 "routerinfo: at least one transport is required");
 
-          std::uint8_t caps(core::RouterInfo::Cap::Reachable);
           // Generate private key
           core::PrivateKeys keys = core::PrivateKeys::CreateRandomKeys(
               core::DEFAULT_ROUTER_SIGNING_KEY_TYPE);
@@ -150,19 +149,25 @@ bool RouterInfoCommand::Impl(
           std::vector<std::pair<std::string, std::uint16_t>> points;
           for (const auto& host : hosts.values)
             points.emplace_back(host, port);
+
           // Create router info
           core::RouterInfo routerInfo(
-              keys, points, std::make_pair(has_ntcp, has_ssu), caps);
+              keys, points, std::make_pair(has_ntcp, has_ssu));
+
           // Set capabilities after creation to allow for disabling
           if (vm["ssuintroducer"].as<bool>())
-            caps |= core::RouterInfo::Cap::SSUIntroducer;
+            routerInfo.SetCaps({core::RouterInfo::Cap::SSUIntroducer});
+
           if (vm["ssutesting"].as<bool>())
-            caps |= core::RouterInfo::Cap::SSUTesting;
+            routerInfo.SetCaps({core::RouterInfo::Cap::SSUTesting});
+
           if (vm["enable-floodfill"].as<bool>())
-            caps |= core::RouterInfo::Cap::Floodfill;
+            routerInfo.SetCaps({core::RouterInfo::Cap::Floodfill});
+
+          // TODO(anonimal): appropriate bandcaps
           auto bandwidth = vm["bandwidth"].as<std::string>();
           if (!bandwidth.empty() && (bandwidth[0] > 'L'))
-            caps |= core::RouterInfo::Cap::HighBandwidth;
+            routerInfo.SetCaps({core::RouterInfo::Cap::BW2000});
 
           // Set filename if none provided
           if (filename.empty())
