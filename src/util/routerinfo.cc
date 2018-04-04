@@ -59,7 +59,7 @@ RouterInfoCommand::RouterInfoCommand()
           core::Configuration::ListParameter<std::string, 2>("127.0.0.1")))(
       "port,p", bpo::value<int>()->default_value(0))(
 
-      "bandwidth,b", bpo::value<std::string>()->default_value("L"))(
+      "bandwidth,b", bpo::value<std::uint16_t>()->default_value(32))(
 
       "enable-floodfill",
       bpo::bool_switch()->default_value(false))(
@@ -86,7 +86,7 @@ void RouterInfoCommand::PrintUsage(const std::string& name) const
   LOG(info) << "or: " << name
             << " --create --host "
                "192.168.1.1,2a01:e35:8b5c:b240:71a2:6750:8d4:47fa --port 10100 "
-               "--enable-floodfill --bandwidth P";
+               "--enable-floodfill --bandwidth 128";
 }
 
 bool RouterInfoCommand::Impl(
@@ -154,6 +154,9 @@ bool RouterInfoCommand::Impl(
           core::RouterInfo routerInfo(
               keys, points, std::make_pair(has_ntcp, has_ssu));
 
+          // Set bandcaps
+          routerInfo.SetBandwidth(vm["bandwidth"].as<std::uint16_t>());
+
           // Set capabilities after creation to allow for disabling
           if (vm["ssuintroducer"].as<bool>())
             routerInfo.SetCaps({core::RouterInfo::Cap::SSUIntroducer});
@@ -163,11 +166,6 @@ bool RouterInfoCommand::Impl(
 
           if (vm["enable-floodfill"].as<bool>())
             routerInfo.SetCaps({core::RouterInfo::Cap::Floodfill});
-
-          // TODO(anonimal): appropriate bandcaps
-          auto bandwidth = vm["bandwidth"].as<std::string>();
-          if (!bandwidth.empty() && (bandwidth[0] > 'L'))
-            routerInfo.SetCaps({core::RouterInfo::Cap::BW2000});
 
           // Set filename if none provided
           if (filename.empty())
