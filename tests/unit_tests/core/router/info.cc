@@ -116,4 +116,18 @@ BOOST_AUTO_TEST_CASE(RemoveCaps)
   BOOST_CHECK_EQUAL(ri.get_caps(), "R");
 }
 
+BOOST_AUTO_TEST_CASE(Bandwidth)
+{
+  core::RouterInfo ri;
+
+  ri.SetBandwidth(52);
+  BOOST_CHECK_EQUAL(ri.get_caps(), "M");
+
+  ri.SetBandwidth(1024);
+  BOOST_CHECK_EQUAL(ri.get_caps(), "PO");
+
+  ri.SetBandwidth(0);
+  BOOST_CHECK_EQUAL(ri.get_caps(), "XO");
+}
+
 BOOST_AUTO_TEST_SUITE_END()

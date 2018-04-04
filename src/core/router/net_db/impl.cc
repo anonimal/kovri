@@ -894,6 +894,8 @@ std::shared_ptr<const RouterInfo> NetDb::GetRandomIntroducer() const {
   });
 }
 
+// TODO(anonimal): ensure BW caps sensitivity/awareness
+
 std::shared_ptr<const RouterInfo> NetDb::GetHighBandwidthRandomRouter(
     std::shared_ptr<const RouterInfo> compatible_with) const {
   return GetRandomRouter(

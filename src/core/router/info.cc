@@ -464,6 +464,37 @@ void RouterInfo::SetDefaultOptions()
   //   netdb starts. We'll need to ensure the 'known' opts are set *after* netdb starts.
 }
 
+void RouterInfo::SetBandwidth(const std::uint16_t kb_sec)
+{
+  LOG(info) << "RouterInfo: setting bandwidth availability to "
+            << (!kb_sec ? "unlimited " : std::to_string(kb_sec) + "KB/sec");
+
+  // Remove all existing BW caps
+  RemoveCaps({Cap::BW12,
+              Cap::BW48,
+              Cap::BW64,
+              Cap::BW128,
+              Cap::BW256,
+              Cap::BW2000,
+              Cap::BWUnlimited});
+
+  // Set new BW caps
+  if (kb_sec >= 1 && kb_sec <= 12)
+    SetCaps({Cap::BW12});
+  else if (kb_sec >= 13 && kb_sec <= 48)
+    SetCaps({Cap::BW48});
+  else if (kb_sec >= 49 && kb_sec <= 64)
+    SetCaps({Cap::BW64});
+  else if (kb_sec >= 65 && kb_sec <= 128)
+    SetCaps({Cap::BW128});
+  else if (kb_sec >= 129 && kb_sec <= 256)
+    SetCaps({Cap::BW256});
+  else if (kb_sec >= 257 && kb_sec <= 2000)
+    SetCaps({Cap::BW2000});
+  else
+    SetCaps({Cap::BWUnlimited});
+}
+
 void RouterInfo::SetCaps(const std::initializer_list<Cap>& caps)
 {
   SetCaps(GetCapsFlags(caps));

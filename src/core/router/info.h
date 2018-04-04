@@ -666,6 +666,10 @@ class RouterInfo : public RouterInfoTraits, public RoutingDestination
       const std::string& tabs = std::string()) const;
 
  public:
+  /// @brief Set router bandwidth capabilities
+  /// @param kb_sec Bandwidth in KB/sec
+  void SetBandwidth(const std::uint16_t kb_sec);
+
   /// @brief Set RI capabilities by key(s)
   /// @param caps RI capabilities
   void SetCaps(const std::initializer_list<Cap>& caps);

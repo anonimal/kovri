@@ -212,15 +212,7 @@ void RouterContext::Initialize(const boost::program_options::variables_map& map)
     }
 
   // Bandcaps
-  auto const bandwidth = m_Opts["bandwidth"].as<std::string>();
-  if (!bandwidth.empty())
-    {
-      auto const cap = core::RouterInfo::Cap::BW2000;
-      if (bandwidth[0] > 'L')  // TODO(anonimal): refine
-        m_RouterInfo.SetCaps({cap});
-      else
-        m_RouterInfo.RemoveCaps({cap});
-    }
+  m_RouterInfo.SetBandwidth(m_Opts["bandwidth"].as<std::uint16_t>());
 
   // TODO(anonimal): we don't want to update twice when once at the right time will suffice
   // Update RI/commit to disk

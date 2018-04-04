@@ -148,9 +148,7 @@ void Configuration::ParseConfig()
       "enable-floodfill",
       bpo::bool_switch()->default_value(false))(
 
-      // TODO(anonimal): refine bandwidth + update packaged default config file
-      "bandwidth,b",
-      bpo::value<std::string>()->default_value("L"))(
+      "bandwidth,b", bpo::value<std::uint16_t>()->default_value(32))(
 
       "disable-ssu",
       bpo::bool_switch()->default_value(false))(
