@@ -66,12 +66,12 @@ BOOST_AUTO_TEST_CASE(ParseIdentity)
   BOOST_CHECK_EQUAL(
       identity.GetSigningKeyType(),
       core::SIGNING_KEY_TYPE_EDDSA_SHA512_ED25519);
-  BOOST_CHECK_EQUAL(identity.GetCryptoKeyType(), core::CRYPTO_KEY_TYPE_ELGAMAL);
+  BOOST_CHECK_EQUAL(ident.GetCryptoKeyType(), core::CRYPTO_KEY_TYPE_ELGAMAL);
 
   // Check lengths
-  BOOST_CHECK_EQUAL(identity.GetSigningPublicKeyLen(), crypto::PkLen::Ed25519);
-  BOOST_CHECK_EQUAL(identity.GetSigningPrivateKeyLen(), crypto::SkLen::Ed25519);
-  BOOST_CHECK_EQUAL(identity.GetSignatureLen(), crypto::SigLen::Ed25519);
+  BOOST_CHECK_EQUAL(ident.GetSigningPublicKeyLen(), crypto::PkLen::Ed25519);
+  BOOST_CHECK_EQUAL(ident.GetSigningPrivateKeyLen(), crypto::SkLen::Ed25519);
+  BOOST_CHECK_EQUAL(ident.GetSignatureLen(), crypto::SigLen::Ed25519);
 }
 
 BOOST_AUTO_TEST_CASE(ParseIdentityFailure)

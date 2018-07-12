@@ -843,7 +843,7 @@ class Ed25519Verifier::Ed25519VerifierImpl
 
     int const ret(CryptoPP::NaCl::crypto_sign_open(
         rm, &rmlen, sm.data(), sm.size(), m_Pk.data()));
-    assert(rmlen == sm.size());
+    assert(rmlen == sm.size() - crypto::SigLen::Ed25519);
 
     return !ret;
   }
