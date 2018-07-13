@@ -110,7 +110,9 @@ struct IncompleteMessage {
   std::set<std::unique_ptr<Fragment>, FragmentCmp> saved_fragments;
 };
 
-struct SentMessage {
+struct SentMessage
+{
+  SentMessage();
   std::vector<std::unique_ptr<Fragment>> fragments;
   std::uint32_t next_resend_time;  // in seconds
   std::size_t num_resends;

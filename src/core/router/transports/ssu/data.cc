@@ -79,6 +79,13 @@ SSUData::SSUData(
 
 SSUData::~SSUData() {}
 
+SentMessage::SentMessage()
+    : next_resend_time(
+          core::GetSecondsSinceEpoch() + SSUDuration::ResendInterval),
+      num_resends{}
+{
+}
+
 void SSUData::Start() {
   LOG(debug) << "SSUData: starting";
   ScheduleIncompleteMessagesCleanup();
@@ -393,12 +400,8 @@ void SSUData::Send(
             msg_id,
             std::unique_ptr<SentMessage>(std::make_unique<SentMessage>())));
   std::unique_ptr<SentMessage>& sent_message = ret.first->second;
-  if (ret.second) {
-    sent_message->next_resend_time =
-      kovri::core::GetSecondsSinceEpoch()
-      + SSUDuration::ResendInterval;
-    sent_message->num_resends = 0;
-  }
+  if (!ret.second)
+    LOG(debug) << __func__ << ": sent message exists";
   auto& fragments = sent_message->fragments;
   // 9 = flag + #frg(1) + messageID(4) + frag info (3)
   auto payload_size = m_PacketSize - SSUSize::HeaderMin - 9;
