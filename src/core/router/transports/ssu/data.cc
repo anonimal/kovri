@@ -602,13 +602,13 @@ void SSUData::HandleIncompleteMessagesCleanupTimer(
     << "handling incomplete messages cleanup";
   if (ecode != boost::asio::error::operation_aborted) {
     auto ts = kovri::core::GetSecondsSinceEpoch();
-    std::uint8_t const timeout = SSUDuration::IncompleteMessagesCleanupTimeout;
+    std::uint16_t const timeout = SSUDuration::IncompleteMessagesCleanupTimeout;
     for (auto it = m_IncompleteMessages.begin(); it != m_IncompleteMessages.end();) {
       if (ts > it->second->last_fragment_insert_time + timeout) {
         LOG(warning)
           << "SSUData:" << m_Session.GetFormattedSessionInfo()
           << "SSU message " << it->first << " was not completed in "
-          << static_cast<std::uint16_t>(timeout) << " seconds. Deleted";
+          << timeout << " seconds. Deleted";
         it = m_IncompleteMessages.erase(it);
       } else {
         it++;
