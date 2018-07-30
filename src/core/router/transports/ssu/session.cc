@@ -1514,10 +1514,17 @@ bool SSUSession::Validate(
 
 void SSUSession::Connect() {
   if (m_State == SessionState::Unknown) {
-    // set connect timer
-    ScheduleConnectTimer();
-    m_DHKeysPair = transports.GetNextDHKeysPair();
-    SendSessionRequest();
+    try
+      {
+        // set connect timer
+        ScheduleConnectTimer();
+        m_DHKeysPair = transports.GetNextDHKeysPair();
+        SendSessionRequest();
+      }
+    catch (...)
+      {
+        m_Exception.Dispatch(__func__);
+      }
   }
 }
 
@@ -1657,6 +1664,9 @@ const std::uint8_t* SSUSession::GetIntroKey() const
       auto* const address =
           m_RemoteRouter->GetAnyAddress(m_RemoteRouter->HasV6(), Transport::SSU);
       assert(address);  // TODO(anonimal): SSU should be guaranteed
+      if (!address)
+        throw std::runtime_error(
+            __func__ + std::string(": null remote address"));
       return address->key;
     }
 
@@ -1665,6 +1675,8 @@ const std::uint8_t* SSUSession::GetIntroKey() const
   const auto* address = context.GetRouterInfo().GetAnyAddress(
       context.GetRouterInfo().HasV6(), Transport::SSU);
   assert(address);  // TODO(anonimal): SSU should be guaranteed
+  if (!address)
+    throw std::runtime_error(__func__ + std::string(": null local address"));
   return address->key;
 }
 
